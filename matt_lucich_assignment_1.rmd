@@ -1,0 +1,123 @@
+---
+title: "Assignment 1 – Loading Data into a Data Frame"
+author: "Matthew Lucich"
+output:
+  html_document: default
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(eval = TRUE, results = FALSE, fig.show = "hide", message = FALSE)
+```
+
+```{r load-packages}
+library(tidyverse)
+library(ggplot2)
+```
+
+## Overview
+
+The article *You Can’t Trust What You Read About Nutrition* explains some of the main reasons nutrition studies and the reporting around them are problematic. This is mainly due to studies relying on questionable survey data as well as p-hacking. In regards to the latter issue, spurious associations are often found when conducting statistical tests across an inordinate amount of variable combinations.
+
+Link to article: https://fivethirtyeight.com/features/you-cant-trust-what-you-read-about-nutrition/ 
+
+
+### Loading the data
+
+```{r load-data, results = FALSE}
+
+# Load nutrition csv from Github repo (if you prefer)
+#nutrition <- read.csv("raw_anonymized_data.csv")
+
+# Load nutrition csv from URL
+nutrition <- read.csv(url("https://raw.githubusercontent.com/fivethirtyeight/data/master/nutrition-studies/raw_anonymized_data.csv"))
+
+# Preview the data
+head(nutrition)
+
+# Rows x Columns
+dim(nutrition)
+
+```
+
+
+### Transforming the data
+
+```{r transform-data, results = FALSE}
+
+# Narrow data frame to conduct a more focused analysis
+characteristics_colums <- c("cancer", "diabetes", "heart_disease", "ever_smoked", "currently_smoke")
+df_characteristics <- nutrition[characteristics_colums]
+
+# Convert binary yes and no characteristics to ones and zeros
+df_characteristics <- ifelse(df_characteristics == "Yes", 1, 0)
+
+# Select ID and PIZZAFREQ to join with characteristics
+id_and_pizza_columns <- c("ID", "PIZZAFREQ")
+df_id_pizza <- nutrition[id_and_pizza_columns]
+
+# Rename PIZZAFREQ column to match formatting of other column names
+names(df_id_pizza)[names(df_id_pizza) == "PIZZAFREQ"] <- "pizza_freq"
+
+# Join all the variables of interest into one data frame
+df_pizza_disease <- data.frame(df_id_pizza, df_characteristics)
+
+```
+
+
+### Exploratory data analysis
+
+```{r eda, results = TRUE, fig.show="asis"}
+
+# Review summary statistics of our one discrete variable pizza_freq
+summary(df_pizza_disease$pizza_freq)
+
+# Review means of binary characteristics
+sapply(df_pizza_disease[c(3:7)], mean, na.rm=TRUE)
+
+# Create histogram of our one discrete variable pizza_freq
+hist(df_pizza_disease$pizza_freq, col="steelblue", 
+     xlab = "Frequency of Pizza", ylab = "Frequency of Participants", 
+     main="Frequency of Pizza")
+
+# Create bar plots for characteristics
+barplot_columns <- function(df_columns) {
+  df_columns <- as.data.frame(df_columns)
+  for (col in colnames(df_columns)) {
+    # Print bar plot for column
+    print(ggplot(df_columns, aes(df_columns[ , col])) 
+          + geom_bar(fill="steelblue") + xlab(as.character(col)))
+  }
+}
+
+barplot_columns(df_characteristics)
+
+```
+
+
+### Modeling
+
+```{r modeling, results = TRUE}
+
+# Logistic regression with multiple variables
+summary(glm(heart_disease ~ pizza_freq + currently_smoke, 
+            df_pizza_disease, family = "binomial"))
+
+# Logistic regression with multiple variables and interaction
+summary(glm(diabetes ~ pizza_freq * currently_smoke, 
+            df_pizza_disease, family = "binomial"))
+
+```
+
+
+## Conclusions
+
+Since the purpose of this FiveThirtyEight analysis was to prove how easy it is to p-hack nutrition data, extending the work would not be advised. Instead, above is a subset of characteristics and an eating frequency variable of interest. To conduct a more sound analysis, more thought should be put into the subset of diseases and explanatory variables to test. Additionally, more research should be done to better understand the data values as FiveThirtyEight does not identify specifics around time frames, units and criteria of the data columns.
+
+
+* * *
+
+<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.
+
